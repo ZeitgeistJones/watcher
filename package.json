@@ -1,0 +1,25 @@
+{
+  "name": "cx-watcher",
+  "version": "1.0.0",
+  "description": "Read-only Aerodrome Slipstream CX/WETH pool watcher on Base",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "once": "tsx src/index.ts --once"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "viem": "^2.23.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.4",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}
