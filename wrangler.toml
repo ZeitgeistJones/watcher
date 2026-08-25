@@ -11,13 +11,12 @@ compatibility_flags = ["nodejs_compat"]
 [triggers]
 crons = ["* * * * *"]
 
-# Create the namespace once, then replace id/preview_id with real values:
-#   npx wrangler kv namespace create CX_WATCHER_STATE
+# Production KV id. preview_id stays as a local/Miniflare placeholder for `wrangler dev`.
+# Optional: create a real preview namespace and replace preview_id:
 #   npx wrangler kv namespace create CX_WATCHER_STATE --preview
-# Local `wrangler dev` works with these placeholder IDs (Miniflare).
 [[kv_namespaces]]
 binding = "CX_WATCHER_STATE"
-id = "00000000000000000000000000000001"
+id = "e48c19dfd123476697309b03cea4d421"
 preview_id = "00000000000000000000000000000002"
 
 # Non-secret defaults (override in dashboard or [vars] as needed).
