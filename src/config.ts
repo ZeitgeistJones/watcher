@@ -1,16 +1,17 @@
-// Load and validate watcher configuration from environment variables.
+// Load and validate watcher configuration from an env map (Node or Workers).
 
-import "dotenv/config";
 import { type Address, isAddress } from "viem";
 
-function required(name: string): string {
-  const v = process.env[name]?.trim();
+type EnvMap = Record<string, string | undefined>;
+
+function required(env: EnvMap, name: string): string {
+  const v = env[name]?.trim();
   if (!v) throw new Error(`Missing required env var: ${name}`);
   return v;
 }
 
-function optional(name: string, fallback: string): string {
-  const v = process.env[name]?.trim();
+function optional(env: EnvMap, name: string, fallback: string): string {
+  const v = env[name]?.trim();
   return v && v.length > 0 ? v : fallback;
 }
 
@@ -72,63 +73,102 @@ export interface Config {
   stateFile: string;
 }
 
-export function loadConfig(): Config {
-  const telegramBotToken = optional("TELEGRAM_BOT_TOKEN", "");
-  const telegramChatId = optional("TELEGRAM_CHAT_ID", "");
+/** Build config from any env-like object (process.env or Worker env). */
+export function loadConfigFromEnv(env: EnvMap): Config {
+  const telegramBotToken = optional(env, "TELEGRAM_BOT_TOKEN", "");
+  const telegramChatId = optional(env, "TELEGRAM_CHAT_ID", "");
 
   return {
-    baseRpcUrl: required("BASE_RPC_URL"),
+    baseRpcUrl: required(env, "BASE_RPC_URL"),
     telegramBotToken: telegramBotToken || null,
     telegramChatId: telegramChatId || null,
-    cxAmount: optional("CX_AMOUNT", "11577.51"),
-    pollIntervalMs: asInt("POLL_INTERVAL_MS", optional("POLL_INTERVAL_MS", "30000")),
+    cxAmount: optional(env, "CX_AMOUNT", "11577.51"),
+    pollIntervalMs: asInt(
+      "POLL_INTERVAL_MS",
+      optional(env, "POLL_INTERVAL_MS", "30000"),
+    ),
     heartbeatIntervalMs: asInt(
       "HEARTBEAT_INTERVAL_MS",
-      optional("HEARTBEAT_INTERVAL_MS", "21600000"),
+      optional(env, "HEARTBEAT_INTERVAL_MS", "21600000"),
     ),
-    tickBoundary: asInt("TICK_BOUNDARY", optional("TICK_BOUNDARY", "-115800")),
-    tickUpper: asInt("TICK_UPPER", optional("TICK_UPPER", "-94800")),
+    tickBoundary: asInt(
+      "TICK_BOUNDARY",
+      optional(env, "TICK_BOUNDARY", "-115800"),
+    ),
+    tickUpper: asInt("TICK_UPPER", optional(env, "TICK_UPPER", "-94800")),
     bigLiquidityMin: asBigInt(
       "BIG_LIQUIDITY_MIN",
-      optional("BIG_LIQUIDITY_MIN", "1000000000000000000000"),
+      optional(env, "BIG_LIQUIDITY_MIN", "1000000000000000000000"),
     ),
-    alertWatchUsd: asFloat("ALERT_WATCH_USD", optional("ALERT_WATCH_USD", "200")),
-    alertGoodUsd: asFloat("ALERT_GOOD_USD", optional("ALERT_GOOD_USD", "300")),
-    alertStrongUsd: asFloat("ALERT_STRONG_USD", optional("ALERT_STRONG_USD", "400")),
+    alertWatchUsd: asFloat(
+      "ALERT_WATCH_USD",
+      optional(env, "ALERT_WATCH_USD", "200"),
+    ),
+    alertGoodUsd: asFloat(
+      "ALERT_GOOD_USD",
+      optional(env, "ALERT_GOOD_USD", "300"),
+    ),
+    alertStrongUsd: asFloat(
+      "ALERT_STRONG_USD",
+      optional(env, "ALERT_STRONG_USD", "400"),
+    ),
     alertVeryStrongUsd: asFloat(
       "ALERT_VERY_STRONG_USD",
-      optional("ALERT_VERY_STRONG_USD", "500"),
+      optional(env, "ALERT_VERY_STRONG_USD", "500"),
     ),
     quoteSlippageRefBps: asInt(
       "QUOTE_SLIPPAGE_REF_BPS",
-      optional("QUOTE_SLIPPAGE_REF_BPS", "100"),
+      optional(env, "QUOTE_SLIPPAGE_REF_BPS", "100"),
     ),
     alertOnWindowClose: asBool(
       "ALERT_ON_WINDOW_CLOSE",
-      optional("ALERT_ON_WINDOW_CLOSE", "true"),
+      optional(env, "ALERT_ON_WINDOW_CLOSE", "true"),
     ),
     cxAddress: asAddress(
       "CX_ADDRESS",
-      optional("CX_ADDRESS", "0x000000000000012DeF132E61759048bE5b5C6033"),
+      optional(env, "CX_ADDRESS", "0x000000000000012DeF132E61759048bE5b5C6033"),
     ),
     wethAddress: asAddress(
       "WETH_ADDRESS",
-      optional("WETH_ADDRESS", "0x4200000000000000000000000000000000000006"),
+      optional(
+        env,
+        "WETH_ADDRESS",
+        "0x4200000000000000000000000000000000000006",
+      ),
     ),
     poolAddress: asAddress(
       "POOL_ADDRESS",
-      optional("POOL_ADDRESS", "0x9249F441005947831eaAF9135B319AD97BCD6Bdf"),
+      optional(
+        env,
+        "POOL_ADDRESS",
+        "0x9249F441005947831eaAF9135B319AD97BCD6Bdf",
+      ),
     ),
     quoterV2Address: asAddress(
       "QUOTER_V2_ADDRESS",
-      optional("QUOTER_V2_ADDRESS", "0x254cF9E1E6e233aa1AC962CB9B05b2cfeAaE15b0"),
+      optional(
+        env,
+        "QUOTER_V2_ADDRESS",
+        "0x254cF9E1E6e233aa1AC962CB9B05b2cfeAaE15b0",
+      ),
     ),
     npmAddress: asAddress(
       "NPM_ADDRESS",
-      optional("NPM_ADDRESS", "0x827922686190790b37229fd06084350E74485b72"),
+      optional(
+        env,
+        "NPM_ADDRESS",
+        "0x827922686190790b37229fd06084350E74485b72",
+      ),
     ),
-    stateFile: optional("STATE_FILE", "data/state.json"),
+    stateFile: optional(env, "STATE_FILE", "data/state.json"),
   };
+}
+
+/** Node convenience: reads process.env (call after dotenv). */
+export function loadConfig(): Config {
+  return loadConfigFromEnv(
+    process.env as Record<string, string | undefined>,
+  );
 }
 
 export function tierFromUsd(usd: number | null, cfg: Config): AlertTier {
@@ -168,4 +208,13 @@ export function tierLabel(tier: AlertTier): string {
     case "very_strong":
       return "VERY_STRONG";
   }
+}
+
+/** Flatten Worker env (string bindings only) into a plain map. */
+export function envRecordFromWorker(env: object): EnvMap {
+  const out: EnvMap = {};
+  for (const [k, v] of Object.entries(env)) {
+    if (typeof v === "string") out[k] = v;
+  }
+  return out;
 }

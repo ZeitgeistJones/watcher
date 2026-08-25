@@ -44,7 +44,14 @@ export async function fetchEthUsd(): Promise<number | null> {
   try {
     const res = await fetch(
       "https://api.coingecko.com/api/v3/simple/price?ids=ethereum&vs_currencies=usd",
-      { signal: AbortSignal.timeout(10_000) },
+      {
+        signal: AbortSignal.timeout(10_000),
+        headers: {
+          Accept: "application/json",
+          // CoinGecko often 403s bare Worker/fetch User-Agents
+          "User-Agent": "cx-watcher/1.0 (read-only; +https://github.com/ZeitgeistJones/watcher)",
+        },
+      },
     );
     if (!res.ok) {
       console.error(`[${new Date().toISOString()}] ETH/USD HTTP ${res.status}`);

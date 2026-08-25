@@ -1,7 +1,5 @@
-// Persist minimal watcher state to avoid duplicate alerts across restarts.
+// Watcher state shape + parse/serialize (no filesystem — Node and Workers both use this).
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import path from "node:path";
 import type { AlertTier } from "./config.js";
 
 export interface WatcherState {
@@ -16,7 +14,7 @@ export interface WatcherState {
   lastQuoteUsd: number | null;
 }
 
-const DEFAULT_STATE: WatcherState = {
+export const DEFAULT_STATE: WatcherState = {
   lastTick: null,
   windowOpen: false,
   openAlertSent: false,
@@ -28,24 +26,25 @@ const DEFAULT_STATE: WatcherState = {
   lastQuoteUsd: null,
 };
 
-export async function loadState(filePath: string): Promise<WatcherState> {
+export interface StateStore {
+  load(): Promise<WatcherState>;
+  save(state: WatcherState): Promise<void>;
+}
+
+export function parseState(raw: string | null | undefined): WatcherState {
+  if (!raw) return { ...DEFAULT_STATE };
   try {
-    const raw = await readFile(filePath, "utf8");
     const parsed = JSON.parse(raw) as Partial<WatcherState>;
     return {
       ...DEFAULT_STATE,
       ...parsed,
       lastAlertedTier: parsed.lastAlertedTier ?? "none",
     };
-  } catch (err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    if (code === "ENOENT") return { ...DEFAULT_STATE };
-    throw err;
+  } catch {
+    return { ...DEFAULT_STATE };
   }
 }
 
-export async function saveState(filePath: string, state: WatcherState): Promise<void> {
-  const dir = path.dirname(filePath);
-  await mkdir(dir, { recursive: true });
-  await writeFile(filePath, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+export function serializeState(state: WatcherState): string {
+  return JSON.stringify(state);
 }

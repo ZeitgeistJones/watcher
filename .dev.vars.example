@@ -1,0 +1,6 @@
+# Local Wrangler secrets (gitignored). Copy from .dev.vars.example.
+# Used by: npm run worker:dev
+
+BASE_RPC_URL=https://base.publicnode.com
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_CHAT_ID=

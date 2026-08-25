@@ -1,0 +1,37 @@
+# CX Watcher — Cloudflare Worker
+# Cron every minute. State in KV. Secrets via Wrangler / dashboard.
+# Do not put real secrets in this file — use `wrangler secret` or .dev.vars locally.
+
+name = "cx-watcher"
+main = "src/worker.ts"
+compatibility_date = "2025-03-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Workers Free tier supports Cron Triggers (minimum once per minute).
+[triggers]
+crons = ["* * * * *"]
+
+# Create the namespace once, then replace id/preview_id with real values:
+#   npx wrangler kv namespace create CX_WATCHER_STATE
+#   npx wrangler kv namespace create CX_WATCHER_STATE --preview
+# Local `wrangler dev` works with these placeholder IDs (Miniflare).
+[[kv_namespaces]]
+binding = "CX_WATCHER_STATE"
+id = "00000000000000000000000000000001"
+preview_id = "00000000000000000000000000000002"
+
+# Non-secret defaults (override in dashboard or [vars] as needed).
+# Secrets BASE_RPC_URL / TELEGRAM_* should be set via `wrangler secret put`
+# or Cloudflare dashboard → Settings → Variables (encrypt secrets).
+[vars]
+CX_AMOUNT = "11577.51"
+HEARTBEAT_INTERVAL_MS = "21600000"
+TICK_BOUNDARY = "-115800"
+TICK_UPPER = "-94800"
+BIG_LIQUIDITY_MIN = "1000000000000000000000"
+ALERT_WATCH_USD = "200"
+ALERT_GOOD_USD = "300"
+ALERT_STRONG_USD = "400"
+ALERT_VERY_STRONG_USD = "500"
+QUOTE_SLIPPAGE_REF_BPS = "100"
+ALERT_ON_WINDOW_CLOSE = "true"
