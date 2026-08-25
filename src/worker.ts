@@ -50,6 +50,11 @@ async function runScheduled(env: Env): Promise<Response> {
     opts: { retryAttempts: 3, maxBackoffMs: 2_000 },
   });
 
+  // One concise line per cron for Cloudflare Workers Logs / observability.
+  console.log(
+    `[cx-watcher] block=${result.snap.blockNumber.toString()} tick=${result.snap.tick} liquidity=${result.snap.liquidity.toString()} window=${result.windowOpen ? "OPEN" : "CLOSED"} quote=${result.quote?.wethFormatted ?? "n/a"} WETH usd=${result.quote?.usd ?? "n/a"}`,
+  );
+
   printStartupStatus({
     rpcOk: true,
     snap: result.snap,
