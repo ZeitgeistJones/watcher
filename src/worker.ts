@@ -39,6 +39,13 @@ export interface Env {
 }
 
 async function runScheduled(env: Env): Promise<Response> {
+  // Safe binding diagnostics — booleans/types only, never secret values.
+  const hasTelegramBotToken = Boolean(env.TELEGRAM_BOT_TOKEN);
+  const hasTelegramChatId = Boolean(env.TELEGRAM_CHAT_ID);
+  console.log(
+    `[cx-watcher] telegramBindings hasTelegramBotToken=${hasTelegramBotToken} hasTelegramChatId=${hasTelegramChatId} tokenType=${typeof env.TELEGRAM_BOT_TOKEN} chatIdType=${typeof env.TELEGRAM_CHAT_ID}`,
+  );
+
   const cfg = loadConfigFromEnv(envRecordFromWorker(env));
   const store = createKvStateStore(env.CX_WATCHER_STATE);
   const telegram = createTelegram(cfg.telegramBotToken, cfg.telegramChatId);
