@@ -28,6 +28,7 @@ preview_id = "00000000000000000000000000000002"
 # Secrets BASE_RPC_URL / TELEGRAM_* should be set via `wrangler secret put`
 # or Cloudflare dashboard → Settings → Variables (encrypt secrets).
 [vars]
+BASE_RPC_URL = "https://base-rpc.publicnode.com"
 CX_AMOUNT = "11577.51"
 HEARTBEAT_INTERVAL_MS = "21600000"
 TICK_BOUNDARY = "-115800"
