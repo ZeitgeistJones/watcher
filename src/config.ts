@@ -210,11 +210,47 @@ export function tierLabel(tier: AlertTier): string {
   }
 }
 
-/** Flatten Worker env (string bindings only) into a plain map. */
+/** Known string env/secret names (explicit access — Object.entries misses CF secrets). */
+const WORKER_STRING_KEYS = [
+  "BASE_RPC_URL",
+  "TELEGRAM_BOT_TOKEN",
+  "TELEGRAM_CHAT_ID",
+  "CX_AMOUNT",
+  "POLL_INTERVAL_MS",
+  "HEARTBEAT_INTERVAL_MS",
+  "TICK_BOUNDARY",
+  "TICK_UPPER",
+  "BIG_LIQUIDITY_MIN",
+  "ALERT_WATCH_USD",
+  "ALERT_GOOD_USD",
+  "ALERT_STRONG_USD",
+  "ALERT_VERY_STRONG_USD",
+  "QUOTE_SLIPPAGE_REF_BPS",
+  "ALERT_ON_WINDOW_CLOSE",
+  "CX_ADDRESS",
+  "WETH_ADDRESS",
+  "POOL_ADDRESS",
+  "QUOTER_V2_ADDRESS",
+  "NPM_ADDRESS",
+  "STATE_FILE",
+] as const;
+
+/**
+ * Read Worker bindings by explicit key access.
+ * Do NOT use Object.entries(env) — Cloudflare secret bindings are often
+ * non-enumerable, which made Telegram look "not configured" despite existing.
+ */
 export function envRecordFromWorker(env: object): EnvMap {
+  const record = env as Record<string, unknown>;
   const out: EnvMap = {};
-  for (const [k, v] of Object.entries(env)) {
-    if (typeof v === "string") out[k] = v;
+  for (const key of WORKER_STRING_KEYS) {
+    const v = record[key];
+    if (typeof v === "string") {
+      out[key] = v;
+    } else if (typeof v === "number" || typeof v === "boolean") {
+      // Coerce rare non-string dashboard values (e.g. numeric chat id)
+      out[key] = String(v);
+    }
   }
   return out;
 }
