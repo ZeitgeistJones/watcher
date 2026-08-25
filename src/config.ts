@@ -237,18 +237,21 @@ const WORKER_STRING_KEYS = [
 
 /**
  * Read Worker bindings by explicit key access.
- * Do NOT use Object.entries(env) — Cloudflare secret bindings are often
- * non-enumerable, which made Telegram look "not configured" despite existing.
+ * Prefer `env.*`; fall back to `process.env` when nodejs_compat populates it.
+ * Do NOT use Object.entries(env) — Cloudflare secret bindings are often non-enumerable.
  */
 export function envRecordFromWorker(env: object): EnvMap {
   const record = env as Record<string, unknown>;
+  const proc =
+    typeof process !== "undefined" && process.env
+      ? (process.env as Record<string, string | undefined>)
+      : undefined;
   const out: EnvMap = {};
   for (const key of WORKER_STRING_KEYS) {
-    const v = record[key];
+    const v = record[key] ?? proc?.[key];
     if (typeof v === "string") {
       out[key] = v;
     } else if (typeof v === "number" || typeof v === "boolean") {
-      // Coerce rare non-string dashboard values (e.g. numeric chat id)
       out[key] = String(v);
     }
   }

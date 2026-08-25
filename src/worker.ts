@@ -40,15 +40,21 @@ export interface Env {
 
 async function runScheduled(env: Env): Promise<Response> {
   // Safe binding diagnostics — booleans/types only, never secret values.
+  const proc = typeof process !== "undefined" ? process.env : undefined;
   const hasTelegramBotToken = Boolean(env.TELEGRAM_BOT_TOKEN);
   const hasTelegramChatId = Boolean(env.TELEGRAM_CHAT_ID);
+  const hasTelegramBotTokenProcess = Boolean(proc?.TELEGRAM_BOT_TOKEN);
+  const hasTelegramChatIdProcess = Boolean(proc?.TELEGRAM_CHAT_ID);
   console.log(
-    `[cx-watcher] telegramBindings hasTelegramBotToken=${hasTelegramBotToken} hasTelegramChatId=${hasTelegramChatId} tokenType=${typeof env.TELEGRAM_BOT_TOKEN} chatIdType=${typeof env.TELEGRAM_CHAT_ID}`,
+    `[cx-watcher] telegramBindings envToken=${hasTelegramBotToken} envChat=${hasTelegramChatId} processToken=${hasTelegramBotTokenProcess} processChat=${hasTelegramChatIdProcess} envTokenType=${typeof env.TELEGRAM_BOT_TOKEN} envChatType=${typeof env.TELEGRAM_CHAT_ID}`,
   );
 
   const cfg = loadConfigFromEnv(envRecordFromWorker(env));
   const store = createKvStateStore(env.CX_WATCHER_STATE);
   const telegram = createTelegram(cfg.telegramBotToken, cfg.telegramChatId);
+  console.log(
+    `[cx-watcher] telegramConfigured=${telegram.configured}`,
+  );
 
   // Tighter retries for Workers wall-clock / CPU limits.
   const result = await runWatcherOnce({
