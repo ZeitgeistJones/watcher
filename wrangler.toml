@@ -3,6 +3,7 @@
 # Do not put real secrets in this file — use `wrangler secret` or .dev.vars locally.
 
 name = "cx-watcher"
+keep_vars = true
 main = "src/worker.ts"
 compatibility_date = "2025-03-01"
 compatibility_flags = ["nodejs_compat"]
