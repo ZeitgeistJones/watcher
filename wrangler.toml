@@ -2,7 +2,7 @@
 # Cron every minute. State in KV. Secrets via Wrangler / dashboard.
 # Do not put real secrets in this file — use `wrangler secret` or .dev.vars locally.
 
-name = "cx-watcher"
+name = "watcher"
 keep_vars = true
 main = "src/worker.ts"
 compatibility_date = "2025-03-01"
