@@ -65,7 +65,7 @@ async function runScheduled(env: Env): Promise<Response> {
 
   // One concise line per cron for Cloudflare Workers Logs / observability.
   console.log(
-    `[cx-watcher] block=${result.snap.blockNumber.toString()} tick=${result.snap.tick} liquidity=${result.snap.liquidity.toString()} window=${result.windowOpen ? "OPEN" : "CLOSED"} quote=${result.quote?.wethFormatted ?? "n/a"} WETH usd=${result.quote?.usd ?? "n/a"}`,
+    `[cx-watcher] block=${result.snap.blockNumber.toString()} tick=${result.snap.tick} liquidity=${result.snap.liquidity.toString()} slipstream=${result.windowOpen ? "ACTIVE" : "INACTIVE"} route=${result.quote?.routeKind ?? "n/a"} quote=${result.quote?.wethFormatted ?? "n/a"} WETH usd=${result.quote?.usd ?? "n/a"}`,
   );
 
   printStartupStatus({

@@ -56,14 +56,7 @@ async function main(): Promise<void> {
     snap = await readPoolSnapshot(client, cfg.poolAddress);
     rpcOk = true;
     try {
-      quote = await quoteCxToWeth(client, {
-        quoter: cfg.quoterV2Address,
-        cx: cfg.cxAddress,
-        weth: cfg.wethAddress,
-        cxAmountHuman: cfg.cxAmount,
-        tickSpacing: snap.tickSpacing,
-        slippageRefBps: cfg.quoteSlippageRefBps,
-      });
+      quote = await quoteCxToWeth(client, cfg, cfg.cxAmount);
     } catch (err) {
       logErr("Startup quote failed:", err);
     }

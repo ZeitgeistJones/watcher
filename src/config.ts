@@ -68,7 +68,13 @@ export interface Config {
   cxAddress: Address;
   wethAddress: Address;
   poolAddress: Address;
+  v2PoolAddress: Address;
   quoterV2Address: Address;
+  mixedQuoterV3Address: Address;
+  lpSugarAddress: Address;
+  v2FactoryAddress: Address;
+  clFactoryOldAddress: Address;
+  clFactoryNewAddress: Address;
   npmAddress: Address;
   stateFile: string;
 }
@@ -144,12 +150,60 @@ export function loadConfigFromEnv(env: EnvMap): Config {
         "0x9249F441005947831eaAF9135B319AD97BCD6Bdf",
       ),
     ),
+    v2PoolAddress: asAddress(
+      "V2_POOL_ADDRESS",
+      optional(
+        env,
+        "V2_POOL_ADDRESS",
+        "0x14eE8B85f8feb54E8d623425Bc365B5dde0800d2",
+      ),
+    ),
     quoterV2Address: asAddress(
       "QUOTER_V2_ADDRESS",
       optional(
         env,
         "QUOTER_V2_ADDRESS",
         "0x254cF9E1E6e233aa1AC962CB9B05b2cfeAaE15b0",
+      ),
+    ),
+    mixedQuoterV3Address: asAddress(
+      "MIXED_QUOTER_V3_ADDRESS",
+      optional(
+        env,
+        "MIXED_QUOTER_V3_ADDRESS",
+        "0xCd2A7D98e82D6107eac1828ce8DeAA6acB65b555",
+      ),
+    ),
+    lpSugarAddress: asAddress(
+      "LP_SUGAR_ADDRESS",
+      optional(
+        env,
+        "LP_SUGAR_ADDRESS",
+        "0x69dD9db6d8f8E7d83887A704f447b1a584b599A1",
+      ),
+    ),
+    v2FactoryAddress: asAddress(
+      "V2_FACTORY_ADDRESS",
+      optional(
+        env,
+        "V2_FACTORY_ADDRESS",
+        "0x420DD381b31aEf6683db6B902084cB0FFECe40Da",
+      ),
+    ),
+    clFactoryOldAddress: asAddress(
+      "CL_FACTORY_OLD_ADDRESS",
+      optional(
+        env,
+        "CL_FACTORY_OLD_ADDRESS",
+        "0x5e7BB104d84c7CB9B682AaC2F3d509f5F406809A",
+      ),
+    ),
+    clFactoryNewAddress: asAddress(
+      "CL_FACTORY_NEW_ADDRESS",
+      optional(
+        env,
+        "CL_FACTORY_NEW_ADDRESS",
+        "0xf8f2eB4940CFE7d13603DDDD87f123820Fc061Ef",
       ),
     ),
     npmAddress: asAddress(
@@ -230,7 +284,13 @@ const WORKER_STRING_KEYS = [
   "CX_ADDRESS",
   "WETH_ADDRESS",
   "POOL_ADDRESS",
+  "V2_POOL_ADDRESS",
   "QUOTER_V2_ADDRESS",
+  "MIXED_QUOTER_V3_ADDRESS",
+  "LP_SUGAR_ADDRESS",
+  "V2_FACTORY_ADDRESS",
+  "CL_FACTORY_OLD_ADDRESS",
+  "CL_FACTORY_NEW_ADDRESS",
   "NPM_ADDRESS",
   "STATE_FILE",
 ] as const;

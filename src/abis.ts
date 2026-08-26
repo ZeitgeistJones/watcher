@@ -100,3 +100,46 @@ export const quoterV2Abi = [
     ],
   },
 ] as const;
+
+export const mixedQuoterAbi = [
+  {
+    type: "function",
+    name: "quoteExactInput",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "path", type: "bytes" },
+      { name: "amountIn", type: "uint256" },
+    ],
+    outputs: [
+      { name: "amountOut", type: "uint256" },
+      { name: "v3SqrtPriceX96AfterList", type: "uint160[]" },
+      { name: "v3InitializedTicksCrossedList", type: "uint32[]" },
+      { name: "v3SwapGasEstimate", type: "uint256" },
+    ],
+  },
+] as const;
+
+export const lpSugarAbi = [
+  {
+    type: "function",
+    name: "forSwaps",
+    stateMutability: "view",
+    inputs: [
+      { name: "_limit", type: "uint256" },
+      { name: "_offset", type: "uint256" },
+    ],
+    outputs: [
+      {
+        type: "tuple[]",
+        components: [
+          { name: "lp", type: "address" },
+          { name: "type", type: "int24" },
+          { name: "token0", type: "address" },
+          { name: "token1", type: "address" },
+          { name: "factory", type: "address" },
+          { name: "pool_fee", type: "uint256" },
+        ],
+      },
+    ],
+  },
+] as const;

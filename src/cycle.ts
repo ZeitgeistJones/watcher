@@ -21,10 +21,9 @@ import {
   type PoolSnapshot,
 } from "./pool.js";
 import {
-  diagnoseCxToWethQuote,
   formatEthUsd,
   formatUsd,
-  logQuoteDiagnostic,
+  logQuoteResult,
   quoteCxToWeth,
   type QuoteResult,
 } from "./quote.js";
@@ -92,7 +91,7 @@ function formatTick(tick: number): string {
   return tick.toLocaleString("en-US");
 }
 
-function buildOpenAlert(
+function buildBigLiquidityActiveAlert(
   snap: PoolSnapshot,
   quote: QuoteResult | null,
   cfg: Config,
@@ -100,31 +99,34 @@ function buildOpenAlert(
 ): string {
   const tierBanner =
     tier === "very_strong"
-      ? "\n🔥🔥🔥 TIER: VERY_STRONG\n"
+      ? "\n🔥🔥🔥 EXECUTABLE QUOTE TIER: VERY_STRONG\n"
       : tier === "strong"
-        ? "\n🔥🔥 TIER: STRONG\n"
+        ? "\n🔥🔥 EXECUTABLE QUOTE TIER: STRONG\n"
         : tier === "good"
-          ? "\n🔥 TIER: GOOD\n"
+          ? "\n🔥 EXECUTABLE QUOTE TIER: GOOD\n"
           : tier === "watch"
-            ? "\n👁 TIER: WATCH\n"
+            ? "\n👁 EXECUTABLE QUOTE TIER: WATCH\n"
             : "\n";
 
   const weth = quote?.wethFormatted ?? "n/a";
   const ethUsd = formatEthUsd(quote?.ethUsd ?? null);
   const approx = formatUsd(quote?.usd ?? null);
   const minOut = quote?.minOutRefFormatted ?? "n/a";
+  const route = quote?.routeKind ?? "n/a";
 
   return (
-    `🚨 CX EXIT WINDOW OPEN${tierBanner}\n` +
+    `📊 CX BIG LIQUIDITY ACTIVE${tierBanner}\n` +
+    `Slipstream tick crossed boundary (${cfg.tickBoundary}).\n` +
+    `Large CL position is in-range — not automatically a good exit.\n\n` +
     `Tick: ${formatTick(snap.tick)}\n` +
     `Active liquidity: ${formatLiquidity(snap.liquidity)}\n` +
     `Block: ${snap.blockNumber.toString()}\n\n` +
     `Full bag:\n${cfg.cxAmount} CX\n\n` +
-    `Quote:\n${weth} WETH\n\n` +
+    `Best executable quote (Aerodrome):\n${weth} WETH\n` +
+    `Route: ${route}\n\n` +
     `ETH/USD:\n${ethUsd}\n\n` +
     `Approx value:\n${approx}\n\n` +
     `1% minimum-output reference:\n${minOut} WETH\n\n` +
-    `Status:\nBIG CX/WETH LIQUIDITY ACTIVE\n\n` +
     `Aerodrome:\nhttps://aerodrome.finance/swap\n\n` +
     `Timestamp:\n${new Date().toISOString()}`
   );
@@ -137,7 +139,8 @@ function buildTierUpgradeAlert(
   tier: AlertTier,
 ): string {
   return (
-    `📈 CX QUOTE TIER UPGRADE: ${tierLabel(tier)}\n\n` +
+    `📈 CX EXECUTABLE QUOTE TIER UPGRADE: ${tierLabel(tier)}\n\n` +
+    `Route: ${quote.routeKind}\n` +
     `Tick: ${formatTick(snap.tick)}\n` +
     `Active liquidity: ${formatLiquidity(snap.liquidity)}\n` +
     `Block: ${snap.blockNumber.toString()}\n\n` +
@@ -155,14 +158,15 @@ function buildClosedAlert(
 ): string {
   const q =
     quote !== null
-      ? `${quote.wethFormatted} WETH (${formatUsd(quote.usd)})`
+      ? `${quote.wethFormatted} WETH (${formatUsd(quote.usd)}) route=${quote.routeKind}`
       : "n/a";
 
   return (
-    `⚠️ CX EXIT WINDOW CLOSED\n\n` +
+    `⚠️ CX BIG LIQUIDITY INACTIVE\n\n` +
+    `Slipstream tick fell below boundary (${snap.tick} < boundary).\n\n` +
     `Current tick:\n${formatTick(snap.tick)}\n\n` +
     `Active liquidity:\n${formatLiquidity(snap.liquidity)}\n\n` +
-    `Latest full-bag quote if obtainable:\n${q}\n\n` +
+    `Latest full-bag executable quote if obtainable:\n${q}\n\n` +
     `Block: ${snap.blockNumber.toString()}\n` +
     `Timestamp: ${new Date().toISOString()}`
   );
@@ -195,8 +199,9 @@ function buildHeartbeat(
     `CX watcher alive\n` +
     `tick: ${formatTick(snap.tick)}\n` +
     `liquidity: ${formatLiquidity(snap.liquidity)}\n` +
-    `window: ${windowOpen ? "OPEN" : "CLOSED"}\n` +
+    `slipstream window: ${windowOpen ? "ACTIVE" : "INACTIVE"}\n` +
     `full-bag quote: ${quote?.wethFormatted ?? "n/a"} WETH\n` +
+    `route: ${quote?.routeKind ?? "n/a"}\n` +
     `USD value: ${formatUsd(quote?.usd ?? null)}\n` +
     `latest block: ${snap.blockNumber.toString()}\n` +
     `time: ${new Date().toISOString()}`
@@ -206,22 +211,13 @@ function buildHeartbeat(
 async function tryQuote(
   client: AppClient,
   cfg: Config,
-  tickSpacing: number,
   attempts: number,
   maxBackoffMs: number,
 ): Promise<QuoteResult | null> {
   try {
     return await withRetry(
       "quote",
-      () =>
-        quoteCxToWeth(client, {
-          quoter: cfg.quoterV2Address,
-          cx: cfg.cxAddress,
-          weth: cfg.wethAddress,
-          cxAmountHuman: cfg.cxAmount,
-          tickSpacing,
-          slippageRefBps: cfg.quoteSlippageRefBps,
-        }),
+      () => quoteCxToWeth(client, cfg, cfg.cxAmount),
       attempts,
       maxBackoffMs,
     );
@@ -307,7 +303,7 @@ export function printStartupStatus(params: {
   console.log(`Block: ${snap ? snap.blockNumber.toString() : "n/a"}`);
   console.log(`Tick: ${snap ? formatTick(snap.tick) : "n/a"}`);
   console.log(`Boundary: ${cfg.tickBoundary}`);
-  console.log(`Window: ${windowOpen ? "OPEN" : "CLOSED"}`);
+  console.log(`Slipstream window: ${windowOpen ? "ACTIVE" : "INACTIVE"}`);
   console.log(
     `Active liquidity: ${snap ? formatLiquidity(snap.liquidity) : "n/a"}`,
   );
@@ -315,6 +311,7 @@ export function printStartupStatus(params: {
   console.log("");
   console.log(`${cfg.cxAmount} CX quote:`);
   console.log(`${quote ? quote.wethFormatted : "n/a"} WETH`);
+  console.log(`Route: ${quote?.routeKind ?? "n/a"}`);
   console.log(`${formatUsd(quote?.usd ?? null)}`);
   console.log("");
   console.log(
@@ -348,43 +345,21 @@ export async function runTickCycle(
   const tickOpen = isWindowOpenByTick(snap.tick, cfg.tickBoundary);
   const windowOpen = tickOpen && bigActive;
 
-  const quote = await tryQuote(
-    client,
-    cfg,
-    snap.tickSpacing,
-    attempts,
-    maxBackoffMs,
-  );
+  const quote = await tryQuote(client, cfg, attempts, maxBackoffMs);
 
-  // Quote diagnostics only — does not affect alerts / thresholds.
-  try {
-    const diag5k = await diagnoseCxToWethQuote(client, {
-      label: "diag-5000-CX",
-      pool: cfg.poolAddress,
-      quoter: cfg.quoterV2Address,
-      cx: cfg.cxAddress,
-      weth: cfg.wethAddress,
-      cxAmountHuman: "5000",
-      tick: snap.tick,
-      tickSpacing: snap.tickSpacing,
-      sqrtPriceX96: snap.sqrtPriceX96,
-      liquidity: snap.liquidity,
-      blockNumber: snap.blockNumber,
-    });
-    logQuoteDiagnostic(diag5k);
-
-    if (quote) {
-      log(
-        `[quote-diag] full-bag=${cfg.cxAmount} amountInRaw=${quote.amountIn.toString()} amountOutRaw=${quote.amountOut.toString()} amountOutWeth=${quote.wethFormatted} sqrtPriceX96After=${quote.sqrtPriceX96After?.toString() ?? "n/a"} ticksCrossed=${quote.initializedTicksCrossed ?? "n/a"} cxDecimals=${quote.cxDecimals ?? "n/a"} tickSpacing=${snap.tickSpacing}`,
+  if (quote) {
+    logQuoteResult("full-bag", quote, snap.blockNumber);
+    try {
+      const diag5k = await withRetry(
+        "quote-diag-5000",
+        () => quoteCxToWeth(client, cfg, "5000"),
+        2,
+        maxBackoffMs,
       );
-      if (diag5k.amountOutRaw === quote.amountOut.toString()) {
-        log(
-          "[quote-diag] WARNING: 5000 CX and full-bag returned identical amountOut (likely liquidity exhausted / price limit hit)",
-        );
-      }
+      logQuoteResult("5000-CX", diag5k, snap.blockNumber);
+    } catch (err) {
+      logErr("5000 CX diagnostic quote failed (non-fatal):", err);
     }
-  } catch (err) {
-    logErr("Quote diagnostic failed (non-fatal):", err);
   }
 
   if (quote) {
@@ -403,9 +378,9 @@ export async function runTickCycle(
   if (crossedOpen || bootAlreadyOpen) {
     const tier = tierFromUsd(quote?.usd ?? null, cfg);
     log(
-      `WINDOW OPEN tick=${snap.tick} liq=${formatLiquidity(snap.liquidity)} tier=${tierLabel(tier)}`,
+      `BIG LIQUIDITY ACTIVE tick=${snap.tick} liq=${formatLiquidity(snap.liquidity)} tier=${tierLabel(tier)} route=${quote?.routeKind ?? "n/a"}`,
     );
-    await telegram.send(buildOpenAlert(snap, quote, cfg, tier));
+    await telegram.send(buildBigLiquidityActiveAlert(snap, quote, cfg, tier));
     state.windowOpen = true;
     state.openAlertSent = true;
     state.lastAlertedTier = tier;
@@ -417,7 +392,7 @@ export async function runTickCycle(
     snap.tick < cfg.tickBoundary;
 
   if (crossedClosed) {
-    log(`WINDOW CLOSED tick=${snap.tick}`);
+    log(`BIG LIQUIDITY INACTIVE tick=${snap.tick}`);
     if (cfg.alertOnWindowClose) {
       await telegram.send(buildClosedAlert(snap, quote));
     }
@@ -427,7 +402,7 @@ export async function runTickCycle(
   } else if (!windowOpen && state.windowOpen) {
     if (tickOpen && !bigActive && state.openAlertSent) {
       log(
-        `WINDOW EFFECTIVELY CLOSED (liquidity collapsed) tick=${snap.tick}`,
+        `BIG LIQUIDITY INACTIVE (liquidity collapsed) tick=${snap.tick}`,
       );
       if (cfg.alertOnWindowClose) {
         await telegram.send(buildClosedAlert(snap, quote));
@@ -476,7 +451,7 @@ export async function runTickCycle(
   await store.save(state);
 
   log(
-    `tick=${snap.tick} liq=${formatLiquidity(snap.liquidity)} window=${windowOpen ? "OPEN" : "CLOSED"} quote=${quote?.wethFormatted ?? "n/a"} WETH usd=${formatUsd(quote?.usd ?? null)} block=${snap.blockNumber}`,
+    `tick=${snap.tick} liq=${formatLiquidity(snap.liquidity)} slipstream=${windowOpen ? "ACTIVE" : "INACTIVE"} route=${quote?.routeKind ?? "n/a"} quote=${quote?.wethFormatted ?? "n/a"} WETH usd=${formatUsd(quote?.usd ?? null)} block=${snap.blockNumber}`,
   );
 
   return { snap, quote, windowOpen, bigActive, state };
