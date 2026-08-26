@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "once": "tsx src/index.ts --once",
     "validate:quote": "tsx src/validate-quote.ts",
+    "investigate:routes": "tsx src/investigate-routes.ts",
     "worker:dev": "wrangler dev --test-scheduled",
     "worker:deploy": "wrangler deploy",
     "worker:types": "wrangler types"
