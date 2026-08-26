@@ -51,7 +51,8 @@ const poolExtraAbi = [
 ] as const;
 
 async function quote(
-  client: ReturnType<typeof createPublicClient>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  client: any,
   human: string,
   decimals: number,
   tickSpacing: number,
