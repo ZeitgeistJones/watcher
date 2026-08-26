@@ -21,8 +21,10 @@ import {
   type PoolSnapshot,
 } from "./pool.js";
 import {
+  diagnoseCxToWethQuote,
   formatEthUsd,
   formatUsd,
+  logQuoteDiagnostic,
   quoteCxToWeth,
   type QuoteResult,
 } from "./quote.js";
@@ -353,6 +355,37 @@ export async function runTickCycle(
     attempts,
     maxBackoffMs,
   );
+
+  // Quote diagnostics only — does not affect alerts / thresholds.
+  try {
+    const diag5k = await diagnoseCxToWethQuote(client, {
+      label: "diag-5000-CX",
+      pool: cfg.poolAddress,
+      quoter: cfg.quoterV2Address,
+      cx: cfg.cxAddress,
+      weth: cfg.wethAddress,
+      cxAmountHuman: "5000",
+      tick: snap.tick,
+      tickSpacing: snap.tickSpacing,
+      sqrtPriceX96: snap.sqrtPriceX96,
+      liquidity: snap.liquidity,
+      blockNumber: snap.blockNumber,
+    });
+    logQuoteDiagnostic(diag5k);
+
+    if (quote) {
+      log(
+        `[quote-diag] full-bag=${cfg.cxAmount} amountInRaw=${quote.amountIn.toString()} amountOutRaw=${quote.amountOut.toString()} amountOutWeth=${quote.wethFormatted} sqrtPriceX96After=${quote.sqrtPriceX96After?.toString() ?? "n/a"} ticksCrossed=${quote.initializedTicksCrossed ?? "n/a"} cxDecimals=${quote.cxDecimals ?? "n/a"} tickSpacing=${snap.tickSpacing}`,
+      );
+      if (diag5k.amountOutRaw === quote.amountOut.toString()) {
+        log(
+          "[quote-diag] WARNING: 5000 CX and full-bag returned identical amountOut (likely liquidity exhausted / price limit hit)",
+        );
+      }
+    }
+  } catch (err) {
+    logErr("Quote diagnostic failed (non-fatal):", err);
+  }
 
   if (quote) {
     state.lastQuoteWeth = quote.wethFormatted;

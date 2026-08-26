@@ -54,6 +54,13 @@ export const clPoolAbi = [
     outputs: [{ name: "", type: "address" }],
   },
   {
+    type: "function",
+    name: "fee",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint24" }],
+  },
+  {
     type: "event",
     name: "Burn",
     inputs: [

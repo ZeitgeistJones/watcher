@@ -1,7 +1,7 @@
 // Exact CX -> WETH quote via Aerodrome Slipstream QuoterV2 + soft ETH/USD.
 
 import { type Address, type PublicClient, formatUnits, parseUnits } from "viem";
-import { erc20Abi, quoterV2Abi } from "./abis.js";
+import { clPoolAbi, erc20Abi, quoterV2Abi } from "./abis.js";
 
 // Base (OP-stack) client types are stricter than default Chain; keep loose.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -15,6 +15,40 @@ export interface QuoteResult {
   ethUsd: number | null;
   minOutRef: bigint;
   minOutRefFormatted: string;
+  /** Raw QuoterV2 tuple fields (for diagnostics). */
+  sqrtPriceX96After?: bigint;
+  initializedTicksCrossed?: number;
+  gasEstimate?: bigint;
+  cxDecimals?: number;
+}
+
+export interface QuoteRouteDiagnostic {
+  label: string;
+  block: string;
+  pool: Address;
+  quoter: Address;
+  tokenIn: Address;
+  tokenOut: Address;
+  token0: Address;
+  token1: Address;
+  cxIsToken0: boolean;
+  wethIsToken1: boolean;
+  zeroForOne: boolean;
+  cxDecimals: number;
+  tickSpacing: number;
+  /** Slipstream fee is dynamic; raw is 1e-6 units (3000 = 0.3%). */
+  feeRaw: number;
+  feePercent: number;
+  tick: number;
+  sqrtPriceX96: string;
+  liquidity: string;
+  amountInHuman: string;
+  amountInRaw: string;
+  amountOutRaw: string;
+  amountOutWeth: string;
+  sqrtPriceX96After: string;
+  initializedTicksCrossed: number;
+  gasEstimate: string;
 }
 
 let cachedDecimals: number | null = null;
@@ -119,7 +153,109 @@ export async function quoteCxToWeth(
     ethUsd,
     minOutRef,
     minOutRefFormatted: formatUnits(minOutRef, 18),
+    sqrtPriceX96After: result[1],
+    initializedTicksCrossed: Number(result[2]),
+    gasEstimate: result[3],
+    cxDecimals: decimals,
   };
+}
+
+/** Diagnostic-only quote — same QuoterV2 path; does not affect alerts. */
+export async function diagnoseCxToWethQuote(
+  client: Rpc,
+  params: {
+    label: string;
+    pool: Address;
+    quoter: Address;
+    cx: Address;
+    weth: Address;
+    cxAmountHuman: string;
+    tick: number;
+    tickSpacing: number;
+    sqrtPriceX96: bigint;
+    liquidity: bigint;
+    blockNumber: bigint;
+  },
+): Promise<QuoteRouteDiagnostic> {
+  const [token0, token1, feeRaw, decimals] = await Promise.all([
+    client.readContract({
+      address: params.pool,
+      abi: clPoolAbi,
+      functionName: "token0",
+    }),
+    client.readContract({
+      address: params.pool,
+      abi: clPoolAbi,
+      functionName: "token1",
+    }),
+    client.readContract({
+      address: params.pool,
+      abi: clPoolAbi,
+      functionName: "fee",
+    }),
+    getCxDecimals(client, params.cx),
+  ]);
+
+  const amountIn = parseUnits(params.cxAmountHuman, decimals);
+  const { result } = await client.simulateContract({
+    address: params.quoter,
+    abi: quoterV2Abi,
+    functionName: "quoteExactInputSingle",
+    args: [
+      {
+        tokenIn: params.cx,
+        tokenOut: params.weth,
+        amountIn,
+        tickSpacing: params.tickSpacing,
+        sqrtPriceLimitX96: 0n,
+      },
+    ],
+  });
+
+  const amountOut = result[0];
+  const feeNum = Number(feeRaw);
+
+  return {
+    label: params.label,
+    block: params.blockNumber.toString(),
+    pool: params.pool,
+    quoter: params.quoter,
+    tokenIn: params.cx,
+    tokenOut: params.weth,
+    token0,
+    token1,
+    cxIsToken0: token0.toLowerCase() === params.cx.toLowerCase(),
+    wethIsToken1: token1.toLowerCase() === params.weth.toLowerCase(),
+    zeroForOne: params.cx.toLowerCase() < params.weth.toLowerCase(),
+    cxDecimals: decimals,
+    tickSpacing: params.tickSpacing,
+    feeRaw: feeNum,
+    feePercent: feeNum / 10_000,
+    tick: params.tick,
+    sqrtPriceX96: params.sqrtPriceX96.toString(),
+    liquidity: params.liquidity.toString(),
+    amountInHuman: params.cxAmountHuman,
+    amountInRaw: amountIn.toString(),
+    amountOutRaw: amountOut.toString(),
+    amountOutWeth: formatUnits(amountOut, 18),
+    sqrtPriceX96After: result[1].toString(),
+    initializedTicksCrossed: Number(result[2]),
+    gasEstimate: result[3].toString(),
+  };
+}
+
+export function logQuoteDiagnostic(d: QuoteRouteDiagnostic): void {
+  console.log(
+    `[quote-diag] ${d.label} block=${d.block} pool=${d.pool} quoter=${d.quoter} ` +
+      `tokenIn=${d.tokenIn} tokenOut=${d.tokenOut} token0=${d.token0} token1=${d.token1} ` +
+      `cxIsToken0=${d.cxIsToken0} wethIsToken1=${d.wethIsToken1} zeroForOne=${d.zeroForOne} ` +
+      `cxDecimals=${d.cxDecimals} tickSpacing=${d.tickSpacing} feeRaw=${d.feeRaw} feePercent=${d.feePercent}% ` +
+      `tick=${d.tick} sqrtPriceX96=${d.sqrtPriceX96} liquidity=${d.liquidity} ` +
+      `amountInHuman=${d.amountInHuman} amountInRaw=${d.amountInRaw} ` +
+      `amountOutRaw=${d.amountOutRaw} amountOutWeth=${d.amountOutWeth} ` +
+      `sqrtPriceX96After=${d.sqrtPriceX96After} initializedTicksCrossed=${d.initializedTicksCrossed} ` +
+      `gasEstimate=${d.gasEstimate}`,
+  );
 }
 
 export function formatUsd(usd: number | null): string {
