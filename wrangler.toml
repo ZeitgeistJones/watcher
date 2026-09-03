@@ -12,9 +12,9 @@ compatibility_flags = ["nodejs_compat"]
 enabled = true
 head_sampling_rate = 1
 
-# Workers Free tier supports Cron Triggers (minimum once per minute).
+# Cron disabled — watcher is off. Restore ["* * * * *"] to turn back on.
 [triggers]
-crons = ["* * * * *"]
+crons = []
 
 # Production KV id. preview_id stays as a local/Miniflare placeholder for `wrangler dev`.
 # Optional: create a real preview namespace and replace preview_id:
